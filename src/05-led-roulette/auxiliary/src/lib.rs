@@ -14,8 +14,9 @@ pub use f3::{
 use f3::hal::{prelude::*, stm32f30x};
 
 pub fn init() -> (Delay, Leds) {
-    let cp = cortex_m::Peripherals::take().unwrap();
     let dp = stm32f30x::Peripherals::take().unwrap();
+
+    let cp = cortex_m::Peripherals::take().unwrap();
 
     let mut flash = dp.FLASH.constrain();
     let mut rcc = dp.RCC.constrain();
