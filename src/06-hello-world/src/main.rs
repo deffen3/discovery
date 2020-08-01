@@ -11,5 +11,7 @@ fn main() -> ! {
 
     iprintln!(&mut itm.stim[0], "Hello, world!");
 
+    panic!("Hello, world!");
+
     loop {}
 }
