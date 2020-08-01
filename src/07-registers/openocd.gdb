@@ -8,3 +8,4 @@ break DefaultHandler
 break HardFault
 break main
 continue
+step
