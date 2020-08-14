@@ -13,6 +13,8 @@ fn delay(tim6: &tim6::RegisterBlock, ms: u16) {
     tim6.cr1.modify(|_, w| w.cen().set_bit());
 
     // Wait until the alarm goes off (until the update event occurs)
+    // SR, Status Register
+    // UIF, Update Interrupt Flag
     while !tim6.sr.read().uif().bit_is_set() {}
 
     // Clear the update event flag
