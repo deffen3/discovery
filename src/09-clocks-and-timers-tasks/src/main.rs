@@ -29,16 +29,16 @@ fn main() -> ! {
     // The counter (CNT) will increase on every millisecond
     tim6.psc.write(|w| w.psc().bits(7999));
 
-    let ms = 100;
+    let cycle_ms = 100;
 
     let mut seq_idx = 0;
 
     let led_tasks: [i32; 8] = [1, 2, 4, 8, 16, 32, 64, 128];
 
     loop {
-        // Set the timer to go off in `ms` ticks
+        // Set the timer to go off in half of `cycle_ms` ticks
         // 1 tick = 1 ms
-        tim6.arr.write(|w| w.arr().bits(ms));
+        tim6.arr.write(|w| w.arr().bits(cycle_ms / 2));
 
         // CEN: Enable the counter
         tim6.cr1.modify(|_, w| w.cen().set_bit());
