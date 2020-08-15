@@ -29,7 +29,7 @@ fn main() -> ! {
     // The counter (CNT) will increase on every millisecond
     tim6.psc.write(|w| w.psc().bits(7999));
 
-    let cycle_ms = 100;
+    let cycle_ms = 200;
 
     let mut seq_idx = 0;
 
