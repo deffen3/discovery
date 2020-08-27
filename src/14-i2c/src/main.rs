@@ -20,22 +20,37 @@ fn main() -> ! {
     // magnetometer
     {
         // TODO Broadcast START
+        i2c1.cr2.write(|w| {
+            w.start().set_bit();
+            w.sadd1().bits(MAGNETOMETER);
+            w.rd_wrn().clear_bit();
+            w.nbytes().bits(1);
+            w.autoend().clear_bit()
+        });
 
-        // TODO Broadcast the MAGNETOMETER address with the R/W bit set to Write
+        while i2c1.isr.read().txis().bit_is_clear() {}
 
-        // TODO Send the address of the register that we want to read: IRA_REG_M
+        i2c1.txdr.write(|w| w.txdata().bits(IRA_REG_M));
+
+        while i2c1.isr.read().tc().bit_is_clear() {}
     }
 
     // Stage 2: Receive the contents of the register we asked for
     let byte = {
         // TODO Broadcast RESTART
-
         // TODO Broadcast the MAGNETOMETER address with the R/W bit set to Read
+        i2c1.cr2.modify(|_, w| {
+            w.start().set_bit();
+            w.nbytes().bits(1);
+            w.rd_wrn().set_bit();
+            w.autoend().set_bit()
+        });
+
+        while i2c1.isr.read().rxne().bit_is_clear() {}
 
         // TODO Receive the contents of the register
 
-        // TODO Broadcast STOP
-        0
+        i2c1.rxdr.read().rxdata().bits()
     };
 
     // Expected output: 0x0A - 0b01001000
