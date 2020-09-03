@@ -30,31 +30,43 @@ fn main() -> ! {
 
         while i2c1.isr.read().txis().bit_is_clear() {}
 
-        i2c1.txdr.write(|w| w.txdata().bits(IRA_REG_M));
+        i2c1.txdr.write(|w| w.txdata().bits(OUT_X_H_M));
 
         while i2c1.isr.read().tc().bit_is_clear() {}
     }
 
     // Stage 2: Receive the contents of the register we asked for
-    let byte = {
-        // TODO Broadcast RESTART
-        // TODO Broadcast the MAGNETOMETER address with the R/W bit set to Read
-        i2c1.cr2.modify(|_, w| {
-            w.start().set_bit();
-            w.nbytes().bits(1);
-            w.rd_wrn().set_bit();
-            w.autoend().set_bit()
-        });
+    // TODO Broadcast RESTART
+    // TODO Broadcast the MAGNETOMETER address with the R/W bit set to Read
+    i2c1.cr2.modify(|_, w| {
+        w.start().set_bit();
+        w.nbytes().bits(6);
+        w.rd_wrn().set_bit();
+        w.autoend().set_bit()
+    });
 
+    while i2c1.isr.read().rxne().bit_is_clear() {}
+
+    let mut buffer = [0u8; 6];
+
+    for byte in &mut buffer {
         while i2c1.isr.read().rxne().bit_is_clear() {}
 
-        // TODO Receive the contents of the register
+        *byte = i2c1.rxdr.read().rxdata().bits();
+    }
 
-        i2c1.rxdr.read().rxdata().bits()
-    };
+    let x_h = u16::from(buffer[0]);
+    let x_l = u16::from(buffer[1]);
+    let z_h = u16::from(buffer[2]);
+    let z_l = u16::from(buffer[3]);
+    let y_h = u16::from(buffer[4]);
+    let y_l = u16::from(buffer[5]);
 
-    // Expected output: 0x0A - 0b01001000
-    iprintln!(&mut itm.stim[0], "0x{:02X} - 0b{:08b}", IRA_REG_M, byte);
+    let x = ((x_h << 8) + x_l) as i16;
+    let y = ((y_h << 8) + y_l) as i16;
+    let z = ((z_h << 8) + z_l) as i16;
+
+    iprintln!(&mut itm.stim[0], "{:?}", (x, y, z));
 
     loop {}
 }
