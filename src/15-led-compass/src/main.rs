@@ -14,8 +14,21 @@ fn main() -> ! {
     const MAG_XY_GAIN: f32 = 1100.; // LSB / G
     const MAG_Z_GAIN: f32 = 980.; // LSB / G    
 
-    //let (mut leds, mut lsm303dlhc, mut l3gd20, mut delay, mut itm) = aux15::init();
-    let (mut lsm303dlhc, mut l3gd20, mut delay, mut itm) = aux15::init();
+    let (mut lsm303dlhc, mut l3gd20, mut delay, mut itm, gpioe) = aux15::init();
+    //gpioe is only safe if we stick to using just bsrr?
+
+    // Set Mode for LEDs
+    gpioe.moder.modify(|_, w| {
+        w.moder8().output();
+        w.moder9().output();
+        w.moder10().output();
+        w.moder11().output();
+        w.moder12().output();
+        w.moder13().output();
+        w.moder14().output();
+        w.moder15().output()
+    });
+
 
     // Range: [-16g, +16g]. Sensitivity ~ 12 g / (1 << 14) LSB
     lsm303dlhc.set_accel_sensitivity(Sensitivity::G12).unwrap();
@@ -36,7 +49,13 @@ fn main() -> ! {
     l3gd20.set_scale(Scale::Dps500).unwrap();
     const GYRO_GAIN: f32 = 65.536; // ??
 
-
+    //Header Output
+    iprintln!(&mut itm.stim[0],
+        "mag_x,mag_y,mag_z,\
+        accel_x,accel_y,accel_z,\
+        gyro_x,gyro_y,gyro_z,\
+        temp_1,temp_2", 
+    );
 
     loop {
         let lsm303dlhc_I16x3 { x:mag_x, y:mag_y, z:mag_z } = lsm303dlhc.mag().unwrap();
@@ -46,30 +65,49 @@ fn main() -> ! {
         let l3gd20_I16x3 { x:gyro_x, y:gyro_y, z:gyro_z } = l3gd20.gyro().unwrap();
         let temp_2: i8 = l3gd20.temp().unwrap();
 
-        // let theta = (mag_y as f32).atan2(mag_x as f32); // in radians
-        
-        // let dir = if theta < -7. * PI / 8. {
-        //     Direction::North
-        // } else if theta < -5. * PI / 8. {
-        //     Direction::Northwest
-        // } else if theta < -3. * PI / 8. {
-        //     Direction::West
-        // } else if theta < -PI / 8. {
-        //     Direction::Southwest
-        // } else if theta < PI / 8. {
-        //     Direction::South
-        // } else if theta < 3. * PI / 8. {
-        //     Direction::Southeast
-        // } else if theta < 5. * PI / 8. {
-        //     Direction::East
-        // } else if theta < 7. * PI / 8. {
-        //     Direction::Northeast
-        // } else {
-        //     Direction::North
-        // };
-        
-        // leds.iter_mut().for_each(|led| led.off());
-        // leds[dir].on();
+        let theta = (mag_y as f32).atan2(mag_x as f32); // in radians
+         
+        //turn off all LEDs
+        gpioe.bsrr.write(|w| {
+            w.br8().set_bit();
+            w.br9().set_bit();
+            w.br10().set_bit();
+            w.br11().set_bit();
+            w.br12().set_bit();
+            w.br13().set_bit();
+            w.br14().set_bit();
+            w.br15().set_bit()
+        });
+
+        //turn on dir LED based on theta mag angle
+        if theta < -7. * PI / 8. {
+            //Direction::North = LD3
+            gpioe.bsrr.write(|w| { w.bs9().set_bit() });
+        } else if theta < -5. * PI / 8. {
+            //Direction::Northwest = LD4
+            gpioe.bsrr.write(|w| { w.bs8().set_bit() });
+        } else if theta < -3. * PI / 8. {
+            //Direction::West = LD6
+            gpioe.bsrr.write(|w| { w.bs15().set_bit() });
+        } else if theta < -PI / 8. {
+            //Direction::Southwest = LD8
+            gpioe.bsrr.write(|w| { w.bs14().set_bit() });
+        } else if theta < PI / 8. {
+            //Direction::South = LD10
+            gpioe.bsrr.write(|w| { w.bs13().set_bit() });
+        } else if theta < 3. * PI / 8. {
+            //Direction::Southeast = LD9
+            gpioe.bsrr.write(|w| { w.bs12().set_bit() });
+        } else if theta < 5. * PI / 8. {
+            //Direction::East = LD7
+            gpioe.bsrr.write(|w| { w.bs11().set_bit() });
+        } else if theta < 7. * PI / 8. {
+            //Direction::Northeast = LD5
+            gpioe.bsrr.write(|w| { w.bs10().set_bit() });
+        } else {
+            //Direction::North = LD3
+            gpioe.bsrr.write(|w| { w.bs9().set_bit() });
+        };
 
         let temp_1_C = TEMP_1_OFFSET + (temp_1 as f32 * TEMP_1_SCALE); //deg Celsius
         let temp_2_C = TEMP_2_OFFSET + (temp_2 as f32 * TEMP_2_SCALE);
@@ -98,17 +136,15 @@ fn main() -> ! {
             gyro_y_dps * gyro_y_dps + 
             gyro_z_dps * gyro_z_dps).sqrt();
 
-        iprintln!(&mut itm.stim[0], "{} mG", mag_magnitude * 1_000.);
-        iprintln!(&mut itm.stim[0], "{} {} {} mG", mag_x_mG, mag_y_mG, mag_z_mG);
+        //Raw Data Output
+        iprintln!(&mut itm.stim[0],
+            "{},{},{},{},{},{},{},{},{},{},{}", 
+            mag_x, mag_y, mag_z,
+            accel_x, accel_y, accel_z,
+            gyro_x, gyro_y, gyro_z,
+            temp_1, temp_2
+        );
 
-        iprintln!(&mut itm.stim[0], "{} g", accel_magnitude);
-        iprintln!(&mut itm.stim[0], "{} {} {} g", accel_x_g, accel_y_g, accel_z_g);
-
-        iprintln!(&mut itm.stim[0], "{} deg/s", gyro_magnitude);
-        iprintln!(&mut itm.stim[0], "{} {} {} deg/s", gyro_x_dps, gyro_y_dps, gyro_z_dps);
-
-        iprintln!(&mut itm.stim[0], "{} {} degC", temp_1_C, temp_2_C);
-
-        delay.delay_ms(100_u8);
+        delay.delay_ms(200_u8);
     }
 }

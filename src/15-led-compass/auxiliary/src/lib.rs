@@ -15,12 +15,12 @@ pub use f3::{
 };
 
 use f3::{
-    hal::{i2c::I2c, spi::Spi, prelude::*, stm32f30x},
+    hal::{i2c::I2c, spi::Spi, prelude::*, stm32f30x::{self, GPIOE, gpioc}},
     Lsm303dlhc, l3gd20, L3gd20,
 };
 
 //pub fn init() -> (Leds, Lsm303dlhc, L3gd20, Delay, ITM) {
-pub fn init() -> (Lsm303dlhc, L3gd20, Delay, ITM) {
+pub fn init() -> (Lsm303dlhc, L3gd20, Delay, ITM, &'static gpioc::RegisterBlock) {
     let cp = cortex_m::Peripherals::take().unwrap();
     let dp = stm32f30x::Peripherals::take().unwrap();
 
@@ -37,9 +37,13 @@ pub fn init() -> (Lsm303dlhc, L3gd20, Delay, ITM) {
 
     let mut gpioa = dp.GPIOA.split(&mut rcc.ahb);
 
+
+    
+
     let mut nss = gpioe
         .pe3
         .into_push_pull_output(&mut gpioe.moder, &mut gpioe.otyper);
+
     nss.set_high();
 
     // The `L3gd20` abstraction exposed by the `f3` crate requires a specific pin configuration to
@@ -71,5 +75,5 @@ pub fn init() -> (Lsm303dlhc, L3gd20, Delay, ITM) {
     //let leds = Leds::new(gpioe);
 
     //(leds, lsm303dlhc, l3gd20, delay, cp.ITM)
-    (lsm303dlhc, l3gd20, delay, cp.ITM)
+    (lsm303dlhc, l3gd20, delay, cp.ITM, unsafe { &*GPIOE::ptr() })
 }
